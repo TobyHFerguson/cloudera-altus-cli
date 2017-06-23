@@ -1,6 +1,6 @@
 # docker-altuscli
 
-This builds an easy to use docker image containing the latest altuscli pulled from the upstream PIP repository.
+This builds an easy to use docker image containing the latest `altus` command line tool pulled from the upstream Python PIP repository.
 
 
 # Build the image:
