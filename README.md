@@ -1,22 +1,30 @@
-# docker-altuscli
+# docker_altus
 
 This builds an easy to use docker image containing the latest `altus` command line tool pulled from the upstream Python PIP repository.
 
 
 # Build the image:
 
-If you need to rebuild the docker image after modifying the Dockerfile, this is how you do it. It will create a container called `altus`
+use `bin/build.sh' to build the `docker_altus` image
 
 ```
-docker build -t altus .
+bin/build.sh
 ```
 
-# Configure your altus credentials
+# Run the image
+Run the image thus:
+```
+bin/run_docker_altus
+```
+This will mount the directory `~/.altus` into the image. This is necessary so that the Altus CLI credentials can be accessed.
+
+If you haven't set up the Altus CLI credentials then do so using these instructions:
+## Configure your altus credentials
 
 You will need to do a one-time setup of your `altus` credentials. We treat `$HOME/.altus` in the docker host as a pass through mount into the container so your credentials are properly stored across instances of a container running.
 
 ```
-docker run -t -i -v ~/.altus:/root/.altus altus altus configure
+bin/run_docker_altus configure
 Altus Access Key ID [None]: XXX
 Altus Private Key [None]: YYY
 ```
@@ -29,41 +37,6 @@ Altus Private Key [None]: YYY
           through the basic configuration process to create the config file in
           $HOME/.altus/, and then edit it manually.
 
-
-# Run the image:
-
-You can choose to launch a shell into the container and run altus commands from there.
-
-```
-docker run -t -i -v ~/.altus:/root/.altus altus /bin/bash
-```
-
-You can choose to do one-off commands
-
-```
-docker run -t -i -v ~/.altus:/root/.altus altus altus help
-```
-
-# Run the dataeng socks-proxy
-
-Sometimes you may need to access the Cloudera Manager instance on the cluster. In order
-to do this, you must launch the `altus dataeng socks-proxy` command. But, because we're
-running `altus` from within a container, you must expose a few ports to the docker host
-and allow SSH to reconfigure and permit "remote" hosts to connect to the SOCKS port.
-
-In our case, "remote" is just the docker host. We do not setup port access such that a
-host completely separate from the docker host can access the proxy.
-
-*Note*: You will need to stash a copy of your ssh key some place that is accessible from
-_within_ the container. The easiest place is to copy it into your `$HOME/.altus` directory,
-which we expose as a mount point into the container.
-
-```
-docker run -t -i -p 1080:1080 -v ~/.altus:/root/.altus altus \
-   altus dataeng socks-proxy \
-   --cluster-name "tcampbell_hive_wa_2" \
-   --ssh-private-key="/root/.altus/tcampbellprimary.pem"
-```
 
 # Testing Notes:
 
