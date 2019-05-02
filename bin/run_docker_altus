@@ -52,16 +52,16 @@ function open_chrome() {
 
 readonly SOCKS_PORT=1080
 CMD=(altus)
-DOCKER=(docker run -v "${HOME}/.altus:/root/.altus")
+DOCKER=(docker run --rm -v "${HOME}/.altus:/root/.altus")
 
-[ $1 = "altus" ] && shift
+[ "$1" = "altus" ] && shift
 
 # If we're going to run the socks proxy then we need to do a few things:
 # Firstly, we need to connect the host and docker ports up properly
 # Then we need to map the volume that contains the ssh key file, taking care to map
 # ~ or HOME on the host to /root in the docker image
 # We also attempt to open up the chrome browser on the host
-if [ $2 = "socks-proxy" ]
+if [ "$2" = "socks-proxy" ]
 then
     DOCKER+=(-p 1080:1080)
     CMD+=($1 $2)
@@ -87,5 +87,4 @@ fi
 
 DOCKER+=(tobyhferguson/docker_altus)
 
-echo ${DOCKER[*]} ${CMD[*]}
 ${DOCKER[*]} ${CMD[*]}
