@@ -1,2 +1,91 @@
 #!/bin/bash
-exec docker run -t -i  -v ~/.altus:/root/.altus -v ~/.aws:/root/.aws docker_altus "$@"
+
+# Given a cluster name return the connection string
+# function getconnectionstring(){
+#     echo https://$(docker run -v $HOME/.altus:/root/.altus -w $HOME docker_altus:proxy /bin/sh -c "altus dataeng describe-cluster --cluster-name $1 | jq -r '.cluster.clouderaManagerEndpoint.privateIpAddress + \":\" + (.cluster.clouderaManagerEndpoint.port|tostring)'")
+# }
+
+function getconnectionstring(){
+    echo http://$(docker run -v $HOME/.altus:/root/.altus -w $HOME docker_altus:proxy /bin/sh -c "altus dataeng describe-cluster --cluster-name $1 | jq -r '.cluster.clouderaManagerEndpoint.privateIpAddress + \":7180\"'")
+}
+
+# Return a volume mapping spec for a given file, where any references to $HOME on the host machine are replaced by /root on the docker target
+function getvolmapping() {
+    src=$(dirname $(expandtilde $1))
+    case $src in
+	${HOME}/* ) echo "${src}:/root/${src#${HOME}/}";;
+	* ) echo ${src};;
+    esac
+}
+
+	    
+# Handle the ~ when its not been expanded, as per WhiteWinterWolf's answer to: https://unix.stackexchange.com/questions/399407/how-can-i-expand-a-tilde-as-part-of-a-variable
+function expandtilde() {
+    case $1 in
+	"~/"* ) echo "${HOME}/${1#"~/"}";;
+	*) echo "$1";;
+    esac
+}
+
+
+# Open up chrome on the given url (See Altus cli: /usr/local/lib/python3.7/site-packages/altuscli/extensions/socks/browserutils.py)
+# ONLY TESTED ON MAC
+function open_web_browser_with_socks() {
+    local url=$1
+    case $OSTYPE in
+	linux*) open_chrome "/usr/bin/google-chrome" $url;;
+	darwin*) open_chrome "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" $url;;
+	win*) open_chrome "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" $url;;
+	*) error "Could not open Cloudera Manager on Google Chrome browser in $OSTYPE OS";;
+    esac
+}
+
+function open_chrome() {
+    local process=$1
+    local url=$2
+    user_dir="--user-data-dir=${HOME}/chrome-with-proxy"
+    proxy="--proxy-server=socks5://localhost:$SOCKS_PORT"
+
+    "$process" --silent "$user_dir" "$proxy" "$url" 1>&2 2>/dev/null
+    
+}
+
+readonly SOCKS_PORT=1080
+CMD=(altus)
+DOCKER=(docker run -v "${HOME}/.altus:/root/.altus")
+
+[ $1 = "altus" ] && shift
+
+# If we're going to run the socks proxy then we need to do a few things:
+# Firstly, we need to connect the host and docker ports up properly
+# Then we need to map the volume that contains the ssh key file, taking care to map
+# ~ or HOME on the host to /root in the docker image
+# We also attempt to open up the chrome browser on the host
+if [ $2 = "socks-proxy" ]
+then
+    DOCKER+=(-p 1080:1080)
+    CMD+=($1 $2)
+    shift
+    shift
+    while [ $# -ne 0 ]
+    do
+	case $1 in
+	    --cluster-name ) connect_string=$(getconnectionstring $2); CMD+=($1 $2); shift; shift;;
+	    --cluster-name=*) connect_string=$(getconnectionstring ${1##*=}); CMD+=($1); shift;;
+	    --ssh-private-key ) DOCKER+=(-v $(getvolmapping $2):/root/); CMD+=($1 $2); shift; shift;;
+	    --ssh-private-key=*) DOCKER+=(-v $(getvolmapping ${1##*=})); CMD+=($1); shift;;
+	    --open-cloudera-manager=yes) open_manager=true; shift;;
+	    --open-cloudera-manager) [ $2 = "yes" ] && open_manager=true; shift; shift;;
+	    *) echo "arg $1 not handled"; shift;;
+    	esac
+    done
+    open_web_browser_with_socks $connect_string
+else
+    CMD+=("$@")
+fi
+
+
+DOCKER+=(tobyhferguson/docker_altus)
+
+echo ${DOCKER[*]} ${CMD[*]}
+${DOCKER[*]} ${CMD[*]}

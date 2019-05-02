@@ -1,1 +1,1 @@
-docker build -t docker_altus $(dirname $0)/..
+docker build -t tobyhferguson/docker_altus $(dirname $0)/..

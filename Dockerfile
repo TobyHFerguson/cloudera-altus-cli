@@ -1,7 +1,7 @@
 FROM python:3.7-alpine
 MAINTAINER Toby Ferguson <toby@cloudera.com>
-RUN apk add --no-cache groff
+RUN apk add --no-cache groff openssh openssh-client jq
 RUN pip install altuscli
 VOLUME /root/.altus
-ENTRYPOINT ["altus"]
-CMD ["help"]
+COPY configs/ssh_config /etc/ssh/ssh_config
+EXPOSE 1080
